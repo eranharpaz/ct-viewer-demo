@@ -1,4 +1,4 @@
 # Markups fiducial file version = 4.11
 # CoordinateSystem = RAS
 # columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID
-Marker_001,16.3600,46.6200,-134.9600,0,0,0,1,1,1,0,"Vessel adjacent to tumor (2.3mm) but not a clear feeder",,
+Marker_001,-8.6300,35.4200,-221.7500,0,0,0,1,1,1,0,"Vessel (2.65 mm) leading to tumor (from SMA)",,
