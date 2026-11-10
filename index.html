@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>CT Viewer</title>
+  <link rel="canonical" href="https://eranharpaz.github.io/ct-viewer-demo/">
+  <style>
+    :root { color-scheme: dark; font: 14px/1.4 system-ui, sans-serif; background: #10151c; color: #e7edf5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; overflow: hidden; }
+    .app { height: 100vh; display: grid; grid-template-columns: 280px minmax(0, 1fr); }
+    aside { background: #171e27; border-right: 1px solid #2b3542; padding: 18px; overflow: auto; display: flex; flex-direction: column; }
+    h1 { font-size: 19px; margin: 0 0 18px; letter-spacing: .02em; }
+    h2 { font-size: 13px; color: #aab8c8; text-transform: uppercase; letter-spacing: .09em; margin: 22px 0 9px; }
+    label { display: block; color: #b9c5d3; margin: 12px 0 6px; }
+    select, button, input { font: inherit; color: inherit; }
+    select, input[type=text] { width: 100%; border: 1px solid #3b4858; border-radius: 6px; background: #10151c; padding: 9px; }
+    button { border: 1px solid #3b4858; border-radius: 6px; background: #253140; padding: 8px 10px; cursor: pointer; }
+    button:hover { background: #314256; }
+    button.primary { width: 100%; margin-top: 10px; background: #245b7a; border-color: #327da6; }
+    .hint, #status { color: #96a6b8; font-size: 12px; }
+    #status { min-height: 34px; margin-top: 11px; }
+    #markers { list-style: none; padding: 0; margin: 0; }
+    #markers li { padding: 7px 6px; border-bottom: 1px solid #2b3542; display: flex; gap: 8px; align-items: center; }
+    #markers li span.marker-entry { flex: 1; min-width: 0; cursor: pointer; border-radius: 5px; padding: 5px 6px; }
+    #markers li span.marker-entry:hover, #markers li span.marker-entry:focus { background: #26384a; outline: none; }
+    #markers li span.marker-entry strong { color: #d7efff; }
+    #markers li.marker-fixed span.marker-entry strong { color: #e4c56a; }
+    #markers li .marker-edit { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; width: 100%; }
+    #markers li .marker-edit input { min-width: 0; padding: 5px; font-size: 12px; }
+    #markers li .marker-edit input:first-child { grid-column: 1 / -1; }
+    #markers li .marker-edit button { font-size: 11px; padding: 4px; }
+    #markers li small { display: block; color: #91a0b1; font-size: 11px; }
+    #markers li button { padding: 3px 7px; }
+    .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; color: #c4cfdb; font-size: 12px; }
+    .legend-toggle { display: flex; width: 100%; gap: 8px; align-items: center; text-align: left; border: 1px solid transparent; background: transparent; padding: 5px 7px; border-radius: 5px; cursor: pointer; white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
+    .legend-toggle:hover { background: #253140; }
+    .legend-toggle[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+    .legend-toggle:focus-visible { outline: 2px solid #61b9e7; }
+    .swatch { width: 10px; height: 10px; border-radius: 2px; }
+    main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    .toolbar { height: 48px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #2b3542; color: #aab8c8; }
+    .toolbar strong { color: #e7edf5; }
+    #resetViews { margin-left: auto; padding: 5px 9px; font-size: 12px; }
+    #viewGrid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+    .view-panel { position: relative; min-width: 0; min-height: 0; overflow: hidden; border-right: 1px solid #202a35; border-bottom: 1px solid #202a35; }
+    .view-panel canvas { display: block; width: 100%; height: 100%; outline: none; }
+    .marker-label-layer { position: absolute; inset: 0; z-index: 4; overflow: hidden; pointer-events: none; }
+    .marker-3d-label { position: absolute; transform: translate(7px, -50%); padding: 2px 5px; border: 1px solid #a66bff; border-radius: 4px; background: #17101fe8; color: #ead8ff; font-size: 11px; line-height: 1.2; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+    main.is-loading #viewGrid { visibility: hidden; }
+    .view-zoom { position: absolute; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 6px; background: #10151cbb; }
+    .view-zoom b { font-size: 11px; font-weight: 500; color: #c4cfdb; padding: 0 3px; }
+    .view-zoom button { min-width: 25px; padding: 2px 6px; background: #253140dd; }
+    .view-zoom button.center-view { width: 27px; height: 25px; min-width: 27px; margin-left: 8px; padding: 3px; display: grid; place-items: center; }
+    .view-zoom button.center-view svg { width: 16px; height: 16px; }
+    .view-panel .view-zoom { top: 8px; left: 8px; }
+    .row { display: flex; gap: 8px; }
+    .row button { flex: 1; }
+    .measure-button { position: sticky; bottom: 0; z-index: 10; align-self: flex-start; margin-top: auto; width: 42px; height: 42px; padding: 8px; display: grid; place-items: center; box-shadow: 0 0 0 6px #171e27; }
+    .measure-button[aria-pressed="true"] { background: #245b7a; border-color: #61b9e7; box-shadow: 0 0 0 2px #61b9e7, 0 0 0 6px #171e27; }
+    .measure-button svg { width: 22px; height: 22px; }
+    @media (max-width: 760px) { .app { grid-template-columns: 220px minmax(0, 1fr); } aside { padding: 12px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <h1>CT Viewer</h1>
+      <label for="caseSelect">Local scan</label>
+      <select id="caseSelect" disabled></select>
+      <button class="primary" id="loadBtn" disabled>Load selected scan</button>
+      <button id="chooseFolder" style="width:100%;margin-top:8px">Choose data folder…</button>
+      <input id="folderInput" type="file" webkitdirectory directory multiple hidden>
+      <div id="status">Starting viewer…</div>
+
+      <h2>Markers</h2>
+      <div class="row">
+        <button id="addMarker" disabled>Add at crosshair</button>
+        <button id="clearMarkers" disabled>Clear</button>
+      </div>
+      <button id="saveMarkers" disabled style="width:100%;margin-top:8px">Save markers to Data folder…</button>
+      <p class="hint">Click any slice to move the linked crosshair. Add a marker at its current location. Click a marker to center all views; use the pencil to edit it.</p>
+      <ul id="markers"></ul>
+      <h2>Overlay colors</h2>
+      <div class="legend">
+        <button class="legend-toggle" data-labels="1,7" aria-pressed="true"><i class="swatch" style="background:#ffff00"></i>Pancreas</button>
+        <button class="legend-toggle" data-labels="2,8" aria-pressed="true"><i class="swatch" style="background:#ff0000"></i>Tumor1</button>
+        <button class="legend-toggle" data-labels="3,9" aria-pressed="true"><i class="swatch" style="background:#ff00ff"></i>CA</button>
+        <button class="legend-toggle" data-labels="4,10" aria-pressed="true"><i class="swatch" style="background:#27d94c"></i>CHA</button>
+        <button class="legend-toggle" data-labels="5,11" aria-pressed="true"><i class="swatch" style="background:#386bff"></i>SMA</button>
+        <button class="legend-toggle" data-labels="6,12" aria-pressed="true"><i class="swatch" style="background:#ff8c32"></i>Tumor2</button>
+        <button class="legend-toggle" data-labels="13" aria-pressed="true"><i class="swatch" style="background:#8000ff"></i>Markers</button>
+      </div>
+      <p class="hint">Scroll over a slice to move through it. Each view has independent pan and zoom; clicking a slice or marker synchronizes the location.</p>
+      <button id="measureButton" class="measure-button" type="button" aria-label="Measure distance in millimeters" title="Measure distance (mm)" aria-pressed="false" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 16.5 16.5 3 21 7.5 7.5 21 3 16.5Z"/><path d="m13.5 6 4.5 4.5M10.5 9l2 2M7.5 12l2 2M4.5 15l2 2"/>
+        </svg>
+      </button>
+    </aside>
+    <main>
+      <div class="toolbar"><strong id="caseTitle">No scan loaded</strong><span id="coordinates"></span><button id="resetViews" disabled>Reset views</button></div>
+      <div id="viewGrid">
+        <section class="view-panel"><canvas id="glAxial"></canvas><div class="view-zoom"><b>Axial</b><button data-view="axial" data-step="-1" aria-label="Zoom axial out">−</button><button data-view="axial" data-step="1" aria-label="Zoom axial in">+</button></div></section>
+        <section class="view-panel"><canvas id="glCoronal"></canvas><div class="view-zoom"><b>Coronal</b><button data-view="coronal" data-step="-1" aria-label="Zoom coronal out">−</button><button data-view="coronal" data-step="1" aria-label="Zoom coronal in">+</button></div></section>
+        <section class="view-panel"><canvas id="glSagittal"></canvas><div class="view-zoom"><b>Sagittal</b><button data-view="sagittal" data-step="-1" aria-label="Zoom sagittal out">−</button><button data-view="sagittal" data-step="1" aria-label="Zoom sagittal in">+</button></div></section>
+        <section class="view-panel"><canvas id="glRender"></canvas><div id="renderMarkerLabels" class="marker-label-layer" aria-hidden="true"></div><div class="view-zoom"><b>3D</b><button data-view="render" data-step="-1" aria-label="Zoom 3D out">−</button><button data-view="render" data-step="1" aria-label="Zoom 3D in">+</button><button class="center-view" data-view="render" data-action="center" aria-label="Center view" title="Center view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button></div></section>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { Niivue, NVImage, DRAG_MODE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.69.0/+esm';
+    import { mat4 } from 'https://cdn.jsdelivr.net/npm/gl-matrix@3.4.3/+esm';
+
+    // Case files live in ../data. run_ct_viewer.py serves the repository root,
+    // so these paths resolve to /data/<case>/ regardless of the process cwd.
+    // The menu is filled by scanning that folder, or the folder the user picks.
+    const DATA_PREFIX = 'data';
+    let CASES = [];
+    function caseIdFromCtName(filename) {
+      const arterial = filename.match(/^(.*)_arterial_ct\.nii\.gz$/);
+      if (arterial?.[1]) return arterial[1];
+      const pancreas = filename.match(/^(pancreas_[^_]+)\.nii\.gz$/);
+      return pancreas?.[1] || '';
+    }
+    function makeCase(id, folder = `${DATA_PREFIX}/${id}`) {
+      const task07 = id.startsWith('pancreas_');
+      const filenames = task07
+        ? { ct: `${id}.nii.gz`, seg: `${id}_segmentation.nii.gz` }
+        : { ct: `${id}_arterial_ct.nii.gz`, seg: `${id}_pancreas_tumor_segmentation.nii.gz` };
+      const arteries = task07 ? [] : ['CA','CHA','SMA','arterial_tumor'].map(n => `${folder}/${id}_PAN-VIQ_${n}.nii.gz`);
+      return { id, ct: `${folder}/${filenames.ct}`, seg: `${folder}/${filenames.seg}`, markers: `${folder}/${id}_markers.fcsv`, hasTumorLabels: !task07,
+        arteries, fcsv: `${folder}/${id}_PAN-VIQ_artery_names.fcsv` };
+    }
+    function setCaseList(cases) {
+      CASES = [...cases].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+      select.replaceChildren();
+      const loadBtn = document.querySelector('#loadBtn');
+      if (!CASES.length) {
+        select.disabled = true;
+        loadBtn.disabled = true;
+        return;
+      }
+      CASES.forEach(c => select.add(new Option(c.id, c.id)));
+      select.disabled = false;
+      loadBtn.disabled = false;
+    }
+    async function listDirectory(url) {
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const html = await response.text();
+      const entries = [];
+      for (const match of html.matchAll(/href="([^"]+)"/gi)) {
+        let href = match[1];
+        if (!href || href.startsWith('?') || href.startsWith('#') || href === '../' || href.startsWith('/')) continue;
+        try { href = decodeURIComponent(href); } catch { continue; }
+        const name = href.replace(/\/$/, '');
+        if (!name || name === '.' || name === '..' || name.startsWith('.')) continue;
+        entries.push({ name, directory: href.endsWith('/') });
+      }
+      return entries;
+    }
+    async function scanServedData() {
+      try {
+        const manifestUrl = new URL(`${DATA_PREFIX}/cases.json`, document.baseURI);
+        const manifest = await fetch(manifestUrl, { cache: 'no-store' });
+        if (manifest.ok) {
+          const ids = await manifest.json();
+          if (Array.isArray(ids) && ids.length) return ids.filter(id => typeof id === 'string' && id).map(id => makeCase(id));
+        }
+      } catch (_) {}
+      const directoryUrl = folder => new URL(`${folder.split('/').map(encodeURIComponent).join('/')}/`, document.baseURI);
+      const top = await listDirectory(directoryUrl(DATA_PREFIX));
+      const found = new Map();
+      const consider = (folder, filename) => {
+        const id = caseIdFromCtName(filename);
+        if (id && !found.has(id)) found.set(id, makeCase(id, folder));
+      };
+      const jobs = [];
+      for (const entry of top) {
+        if (!entry.directory) {
+          consider(DATA_PREFIX, entry.name);
+          continue;
+        }
+        const folder = `${DATA_PREFIX}/${entry.name}`;
+        jobs.push(listDirectory(directoryUrl(folder)).then(entries => {
+          for (const child of entries) if (!child.directory) consider(folder, child.name);
+        }));
+      }
+      await Promise.all(jobs);
+      return [...found.values()];
+    }
+    function casesFromPickedFiles(files) {
+      const found = new Map();
+      for (const file of files) {
+        const id = caseIdFromCtName(file.name);
+        if (id && !found.has(id)) found.set(id, makeCase(id));
+      }
+      return [...found.values()];
+    }
+
+    const byId = id => CASES.find(c => c.id === id);
+    const select = document.querySelector('#caseSelect');
+    const status = document.querySelector('#status');
+    const markerList = document.querySelector('#markers');
+
+    const commonViewOptions = { crosshairColor: [0.2, 0.9, 1, 0.95], crosshairWidth: 1, crosshairGap: 5, backColor: [0.035, 0.045, 0.06, 1], show3Dcrosshair: true, isColorbar: false };
+    const views = {};
+    const measurementFades = new Map();
+    function fadeMeasurementAfterDelay(viewer) {
+      const state = measurementFades.get(viewer);
+      if (!state) return;
+      clearTimeout(state.delay);
+      cancelAnimationFrame(state.frame);
+      state.alpha = 1;
+      state.delay = setTimeout(() => {
+        const fadeStart = performance.now();
+        const fade = now => {
+          state.alpha = Math.max(0, 1 - (now - fadeStart) / 500);
+          viewer.drawScene();
+          if (state.alpha > 0) state.frame = requestAnimationFrame(fade);
+          else {
+            viewer.clearMeasurements?.();
+            state.alpha = 1;
+            viewer.drawScene();
+          }
+        };
+        state.frame = requestAnimationFrame(fade);
+      }, 2000);
+    }
+    const viewSpecs = [
+      ['axial', '#glAxial', 'sliceTypeAxial'],
+      ['coronal', '#glCoronal', 'sliceTypeCoronal'],
+      ['sagittal', '#glSagittal', 'sliceTypeSagittal'],
+      ['render', '#glRender', 'sliceTypeRender']
+    ];
+    for (const [name, canvasSelector, sliceType] of viewSpecs) {
+      const viewer = new Niivue({ ...commonViewOptions });
+      await viewer.attachToCanvas(document.querySelector(canvasSelector));
+      // Render at the browser's device-pixel ratio so high-DPI screens do not
+      // stretch a lower-resolution WebGL canvas across the view panel.
+      viewer.setHighResolutionCapable(window.devicePixelRatio || 1);
+      viewer.setRadiologicalConvention(true);
+      viewer.setSliceType(viewer[sliceType]);
+      if (name !== 'render') {
+        const state = { alpha: 1, delay: null, frame: 0 };
+        measurementFades.set(viewer, state);
+        const drawNativeMeasurement = viewer.drawMeasurementTool.bind(viewer);
+        viewer.drawMeasurementTool = function (points, drawText = true) {
+          drawNativeMeasurement(points, false);
+          if (!drawText) return;
+          const [x0, y0, x1, y1] = points;
+          const startFrac = this.canvasPos2frac([x0, y0]);
+          const endFrac = this.canvasPos2frac([x1, y1]);
+          if (startFrac[0] < 0 || endFrac[0] < 0) return;
+          const startMM = this.frac2mm(startFrac), endMM = this.frac2mm(endFrac);
+          const distance = Math.hypot(startMM[0] - endMM[0], startMM[1] - endMM[1], startMM[2] - endMM[2]);
+          const decimals = distance > 99 ? 0 : distance > 9 ? 1 : 2;
+          const text = `${distance.toFixed(decimals)}${this.opts.showMeasureUnits ? ' mm' : ''}`;
+          const tileIndex = this.tileIndex(x1, y1);
+          const tile = tileIndex >= 0 ? this.screenSlices[tileIndex] : null;
+          const pixelsPerMM = tile?.fovMM?.[1] ? tile.leftTopWidthHeight[3] / tile.fovMM[1] : window.devicePixelRatio || 1;
+          const aboveCursor = Math.max(5, 4 * pixelsPerMM);
+          const color = [...this.opts.measureTextColor];
+          color[3] = (color[3] ?? 1) * state.alpha;
+          this.drawTextBetween([x1, y1 - aboveCursor, x1 + 1, y1 - aboveCursor + 1], text, this.opts.measureTextHeight / 0.06, color);
+        };
+      }
+      if (name === 'sagittal') viewer.opts.sagittalNoseLeft = true;
+      viewer.opts.isColorbar = false;
+      viewer.overlayOutlineWidth = 0.3;
+      if (name !== 'render') viewer.setMouseEventConfig({ leftButton: { primary: DRAG_MODE.crosshair }, centerButton: DRAG_MODE.pan });
+      else viewer.setMouseEventConfig({ centerButton: DRAG_MODE.none });
+      if (name !== 'render') viewer.onMeasurementCompleted = measurement => {
+        setStatus(`Measured distance: ${Number(measurement.distance).toFixed(2)} mm`);
+        fadeMeasurementAfterDelay(viewer);
+      };
+      views[name] = viewer;
+    }
+    // The axial viewer is the canonical coordinate source. Each viewer owns its own scene,
+    // so pan/zoom stay independent while a click updates the crosshair in every pane.
+    const nv = views.axial;
+    const renderView = views.render;
+    // Keep overlay masking disabled: NiiVue's built-in background mask follows
+    // the opposite ray direction for this volume setup and clips the wrong side.
+    renderView.backgroundMasksOverlays = 0;
+    let renderCameraFocusMM = null;
+    const setRenderPivotFromScene = renderView.setPivot3D.bind(renderView);
+    renderView.setPivot3D = function () {
+      setRenderPivotFromScene();
+      if (renderCameraFocusMM) this.pivot3D = [...renderCameraFocusMM];
+    };
+    // NiiVue keeps the close clip plane just in front of the camera. Zooming
+    // into the CT box drives that plane through the volume, and the clipped
+    // cube face is the black polygon. Place the close plane behind the camera
+    // and the far plane past the volume so the ray box stays intact.
+    const defaultRenderMvp = Niivue.prototype.calculateMvpMatrix;
+    renderView.calculateMvpMatrix = function (object3D, ltwh = [0, 0, 0, 0], azimuth, elevation) {
+      if (!this.furthestFromPivot) return defaultRenderMvp.call(this, object3D, ltwh, azimuth, elevation);
+      const canvas = this.gl.canvas;
+      const box = ltwh[2] && ltwh[3] ? ltwh : [0, 0, canvas.width, canvas.height];
+      const aspect = box[2] / box[3];
+      const d = 0.8 * this.furthestFromPivot / (this.scene.volScaleMultiplier || 1);
+      const projection = mat4.create();
+      const farFromCamera = d * 32;
+      const behindCamera = -d * 8;
+      if (aspect < 1) mat4.ortho(projection, -d, d, -d / aspect, d / aspect, farFromCamera, behindCamera);
+      else mat4.ortho(projection, -d * aspect, d * aspect, -d, d, farFromCamera, behindCamera);
+      const pivot = this.pivot3D || [0, 0, 0];
+      const model = mat4.create();
+      model[0] = -1;
+      mat4.translate(model, model, [0, 0, -d * 1.8]);
+      if (this.position) mat4.translate(model, model, this.position);
+      const toRad = Math.PI / 180;
+      mat4.rotateX(model, model, (270 - elevation) * toRad);
+      mat4.rotateZ(model, model, (azimuth - 180) * toRad);
+      mat4.translate(model, model, [-pivot[0], -pivot[1], -pivot[2]]);
+      const mvp = mat4.create();
+      mat4.multiply(mvp, projection, model);
+      const inverse = mat4.create();
+      if (!mat4.invert(inverse, model)) return defaultRenderMvp.call(this, object3D, ltwh, azimuth, elevation);
+      const normal = mat4.create();
+      mat4.transpose(normal, inverse);
+      return [mvp, model, normal];
+    };
+    let markerLabelsFrame = 0;
+    const renderDrawScene = renderView.drawScene.bind(renderView);
+    renderView.drawScene = function (...args) {
+      const result = renderDrawScene(...args);
+      cancelAnimationFrame(markerLabelsFrame);
+      markerLabelsFrame = requestAnimationFrame(updateRenderMarkerLabels);
+      return result;
+    };
+    // Approximate Slicer's CT-Coronary-Arteries-2 colors with a 200 HU onset
+    // and 500 HU upper limit. The zero-alpha segment below 170 also keeps the
+    // render-only ROI mask transparent. Slices retain their abdomen window.
+    const CORONARY_RENDER_MAP = 'slicer-coronary-arteries-2-200-500';
+    renderView.addColormap(CORONARY_RENDER_MAP, {
+      min: 0, max: 500,
+      R: [0, 0, 157, 157, 232, 248, 232],
+      G: [0, 0, 0, 0, 116, 206, 232],
+      B: [0, 0, 4, 4, 0, 156, 255],
+      A: [0, 0, 0, 255, 255, 255, 255],
+      I: [0, 100, 101.5, 102, 140, 185, 255]
+    });
+    function drawAllViews() { Object.values(views).forEach(viewer => viewer.drawScene()); }
+    // Suppress Chrome's middle-click autoscroll while leaving the event available to NiiVue's pan handler.
+    document.querySelectorAll('.view-panel canvas').forEach(canvas => {
+      // NiiVue treats a double-click on a slice as a reset gesture, which also
+      // resets the slice window/level. Keep double-clicks from changing the view.
+      if (canvas.id !== 'glRender') canvas.addEventListener('dblclick', event => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }, true);
+      canvas.addEventListener('mousedown', event => {
+        if (event.button === 1) { event.preventDefault(); middlePanActive = true; }
+      }, true);
+      canvas.addEventListener('auxclick', event => { if (event.button === 1) event.preventDefault(); });
+      canvas.addEventListener('mouseup', event => { if (event.button === 1) { event.preventDefault(); middlePanActive = false; } }, true);
+    });
+    let middlePanActive = false;
+    window.addEventListener('mouseup', event => { if (event.button === 1) middlePanActive = false; }, true);
+    window.addEventListener('blur', () => { middlePanActive = false; });
+    document.addEventListener('wheel', event => {
+      // Some mouse/trackpad drivers emit wheel events while the middle button is held.
+      // Keep those events from scrolling or zooming the slice during a pan gesture.
+      if (middlePanActive) { event.preventDefault(); event.stopImmediatePropagation(); }
+    }, { capture: true, passive: false });
+    drawAllViews();
+    document.querySelectorAll('.view-zoom button').forEach(button => {
+      button.onclick = () => {
+        const viewer = views[button.dataset.view];
+        if (!viewer?.volumes.length) return;
+        if (button.dataset.action === 'center') {
+          const mm = crosshairMM();
+          if (mm) {
+            renderCameraFocusMM = [...mm];
+            viewer.drawScene();
+          }
+          return;
+        }
+        const factor = Number(button.dataset.step) > 0 ? 1.2 : 1 / 1.2;
+        if (button.dataset.view === 'render') {
+          viewer.setScale(Math.min(8, Math.max(0.25, viewer.scene.volScaleMultiplier * factor)));
+        } else {
+          // Reuse NiiVue's own crosshair-anchored wheel zoom math.
+          const canvas = viewer.canvas;
+          const rect = canvas.getBoundingClientRect();
+          const previousDragMode = viewer.opts.dragMode;
+          viewer.opts.dragMode = DRAG_MODE.pan;
+          try {
+            canvas.dispatchEvent(new WheelEvent('wheel', {
+              bubbles: true, cancelable: true, deltaY: Number(button.dataset.step) > 0 ? -100 : 100,
+              clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+            }));
+          } finally {
+            viewer.opts.dragMode = previousDragMode;
+          }
+        }
+      };
+    });
+    const renderCanvas = renderView.canvas;
+    renderCanvas.addEventListener('mousedown', event => {
+      if (event.button !== 1) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+    renderCanvas.addEventListener('wheel', event => {
+      if (!renderView.volumes.length) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      const factor = event.deltaY < 0 ? 1.1 : 1 / 1.1;
+      renderView.setScale(Math.min(8, Math.max(0.25, renderView.scene.volScaleMultiplier * factor)));
+    }, { capture: true, passive: false });
+
+    let loadedCase = null;
+    let markerRows = [];
+    let currentCrosshairVox = null;
+    let generation = 0;
+    let segmentImage = null;
+    let renderMarkerImage = null;
+    let fillImage = null;
+    let tumorFillImage = null;
+    let renderFillImage = null;
+    let markerVoxelValues = new Map();
+    let ctImage = null;
+    let renderCTImage = null;
+    let selectedLocalFiles = null;
+    let loadWarnings = [];
+    let pancreasROI = null;
+    const visibleOverlayLabels = new Set([1,2,3,4,5,6,7,8,9,10,11,12,13]);
+
+    function updateRenderMarkerLabels() {
+      const layer = document.querySelector('#renderMarkerLabels');
+      if (!layer) return;
+      const visible = Boolean(loadedCase && renderView.volumes.length && visibleOverlayLabels.has(13));
+      if (!visible) {
+        layer.replaceChildren();
+        return;
+      }
+      const canvas = renderView.canvas;
+      const rect = canvas.getBoundingClientRect();
+      if (!canvas.width || !canvas.height || !rect.width || !rect.height) return;
+      const labels = markerRows;
+      while (layer.children.length < labels.length) {
+        const label = document.createElement('span');
+        label.className = 'marker-3d-label';
+        layer.append(label);
+      }
+      while (layer.children.length > labels.length) layer.lastElementChild.remove();
+      if (!labels.length) return;
+      const [mvp] = renderView.calculateMvpMatrix(
+        null,
+        [0, 0, canvas.width, canvas.height],
+        renderView.scene.renderAzimuth,
+        renderView.scene.renderElevation
+      );
+      labels.forEach((marker, index) => {
+        const [x, y, z] = marker.mm.map(Number);
+        const clipX = mvp[0] * x + mvp[4] * y + mvp[8] * z + mvp[12];
+        const clipY = mvp[1] * x + mvp[5] * y + mvp[9] * z + mvp[13];
+        const clipZ = mvp[2] * x + mvp[6] * y + mvp[10] * z + mvp[14];
+        const clipW = mvp[3] * x + mvp[7] * y + mvp[11] * z + mvp[15];
+        const label = layer.children[index];
+        label.textContent = marker.name || `Marker ${index + 1}`;
+        if (!(clipW > 0)) { label.hidden = true; return; }
+        const ndcX = clipX / clipW, ndcY = clipY / clipW, ndcZ = clipZ / clipW;
+        const px = (ndcX + 1) * 0.5 * canvas.width;
+        const py = (1 - ndcY) * 0.5 * canvas.height;
+        label.hidden = ndcZ < -1 || ndcZ > 1 || px < 0 || px > canvas.width || py < 0 || py > canvas.height;
+        label.style.left = `${px * rect.width / canvas.width}px`;
+        label.style.top = `${py * rect.height / canvas.height}px`;
+      });
+    }
+
+    function setStatus(text) { status.textContent = text; }
+    const yieldToBrowser = () => new Promise(resolve => setTimeout(resolve, 0));
+    function clearMarkerList() { markerList.replaceChildren(); }
+    function mmText(mm) { return mm.map(v => Number(v).toFixed(1)).join(', '); }
+    function voxelToRAS(image, voxel) {
+      const m = image?.matRAS;
+      if (!m || m.length < 16) throw new Error('CT affine is unavailable for pancreas centering');
+      return [
+        m[0] * voxel[0] + m[4] * voxel[1] + m[8] * voxel[2] + m[12],
+        m[1] * voxel[0] + m[5] * voxel[1] + m[9] * voxel[2] + m[13],
+        m[2] * voxel[0] + m[6] * voxel[1] + m[10] * voxel[2] + m[14]
+      ];
+    }
+    function mmToSceneFraction(mm) {
+      if (!ctImage?.convertMM2Frac) throw new Error('CT coordinate conversion is unavailable');
+      return Array.from(ctImage.convertMM2Frac(mm, false)).slice(0, 3).map(v => Math.min(1, Math.max(0, Number(v))));
+    }
+    function crosshairMM() {
+      if (!ctImage?.convertFrac2MM) return null;
+      return Array.from(ctImage.convertFrac2MM(nv.scene.crosshairPos, false)).slice(0, 3).map(Number);
+    }
+    let syncingCrosshair = false;
+    function setCrosshairFraction(fraction) {
+      const clamped = fraction.map(v => Math.min(1, Math.max(0, Number(v))));
+      syncingCrosshair = true;
+      Object.values(views).forEach(viewer => { viewer.scene.crosshairPos = [...clamped]; });
+      drawAllViews();
+      if (typeof nv.frac2vox === 'function') currentCrosshairVox = Array.from(nv.frac2vox(clamped)).slice(0, 3).map(Number);
+      syncingCrosshair = false;
+    }
+    function setCrosshairVolumeCenter() {
+      setCrosshairFraction([0.5, 0.5, 0.5]);
+    }
+    function resetViews() {
+      if (!loadedCase) return;
+      ['axial', 'coronal', 'sagittal'].forEach(name => views[name].setPan2Dxyzmm([0, 0, 0, 1]));
+      renderView.setScale(1);
+      renderView.position = [0, 0, 0];
+      setCrosshairVolumeCenter();
+      renderCameraFocusMM = null;
+      drawAllViews();
+    }
+    document.querySelector('#resetViews').onclick = resetViews;
+    function setCrosshairMM(mm) {
+      setCrosshairFraction(mmToSceneFraction(mm));
+    }
+    function geometryMismatch(reference, candidate) {
+      const rd = reference?.hdr?.dims, cd = candidate?.hdr?.dims;
+      if (!rd || !cd || [1,2,3].some(i => rd[i] !== cd[i])) return 'voxel dimensions differ';
+      const ra = reference.matRAS, ca = candidate.matRAS;
+      if (!ra || !ca || ra.length !== ca.length) return 'spatial affine is missing';
+      for (let i = 0; i < ra.length; i++) if (Math.abs(ra[i] - ca[i]) > 0.01) return 'spatial affine differs by more than 0.01 mm';
+      return '';
+    }
+    const SEGMENT_FILL_OPACITY = 0.10;
+    // Tumor estimates are drawn on their own slice layer. NiiVue uses one opacity
+    // for a whole label volume, so these two cannot share the other organs' layer
+    // if their CT-slice opacity is set on its own.
+    const TUMOR_CT_OPACITY = 0.25;
+    const TUMOR_LABELS = new Set([2, 6]);
+    const SEGMENT_LUT = {
+      R: [0,255,255,255,39,56,255,255,255,255,39,56,255,128],
+      G: [0,255,0,0,217,107,140,255,0,0,217,107,140,0],
+      B: [0,0,0,255,76,255,50,0,0,255,76,255,50,255],
+      A: [0,255,255,255,255,255,255,255,255,255,255,255,255,255],
+      I: Array.from({length:14}, (_,i) => i),
+      labels: ['Background','Pancreas','Tumor1','CA','CHA','SMA','Tumor2',
+        'Pancreas outline','Tumor1 outline','CA outline','CHA outline','SMA outline','Tumor2 outline','Markers']
+    };
+    function applyOverlayVisibility() {
+      const fillLut = { ...SEGMENT_LUT, A: Array.from({ length: 14 }, (_, label) =>
+        label >= 1 && label <= 6 && !TUMOR_LABELS.has(label) && visibleOverlayLabels.has(label) ? 255 : 0) };
+      const tumorLut = { ...SEGMENT_LUT, A: Array.from({ length: 14 }, (_, label) =>
+        TUMOR_LABELS.has(label) && visibleOverlayLabels.has(label) ? 255 : 0) };
+      const outlineLut = { ...SEGMENT_LUT, A: Array.from({ length: 14 }, (_, label) => {
+        const sourceLabel = label >= 7 && label <= 12 ? label - 6 : label;
+        return label >= 7 && label <= 13 && visibleOverlayLabels.has(sourceLabel) ? 255 : 0;
+      }) };
+      const renderMarkerLut = { ...SEGMENT_LUT, A: Array.from({ length: 14 }, (_, label) =>
+        label === 13 && visibleOverlayLabels.has(13) ? 255 : 0) };
+      if (segmentImage) {
+        segmentImage.setColormapLabel(outlineLut);
+        if (renderMarkerImage) renderMarkerImage.setColormapLabel(renderMarkerLut);
+        if (fillImage) fillImage.setColormapLabel(fillLut);
+        if (tumorFillImage) tumorFillImage.setColormapLabel(tumorLut);
+        if (renderFillImage) renderFillImage.setColormapLabel({ ...SEGMENT_LUT, A: Array.from({ length: 14 }, (_, label) =>
+          label >= 1 && label <= 6 && visibleOverlayLabels.has(label) ? 255 : 0) });
+        Object.values(views).forEach(viewer => viewer.updateGLVolume());
+        drawAllViews();
+      }
+      updateRenderMarkerLabels();
+    }
+    document.querySelectorAll('.legend-toggle').forEach(button => {
+      button.onclick = () => {
+        const labels = button.dataset.labels.split(',').map(Number);
+        const visible = button.getAttribute('aria-pressed') !== 'true';
+        labels.forEach(label => visible ? visibleOverlayLabels.add(label) : visibleOverlayLabels.delete(label));
+        button.setAttribute('aria-pressed', String(visible));
+        applyOverlayVisibility();
+      };
+    });
+    async function mergeMaskIntoLabelImage(path, name, targetValue, reference, binary = true) {
+      let image = await readNifti(path, name, 'gray', 1, true, 1, reference);
+      if (!image) return { count: 0 };
+      const src = image.img, dst = segmentImage.img;
+      let count = 0;
+      for (let i = 0; i < src.length; i++) {
+        if (i > 0 && i % 8_000_000 === 0) await yieldToBrowser();
+        const value = Math.round(src[i]);
+        if (binary ? value !== 0 : value === targetValue) {
+          dst[i] = targetValue;
+          count++;
+        }
+      }
+      image.img = null;
+      image.imgRaw = null;
+      image = null;
+      return { count };
+    }
+    async function mergePancreasTumor(c) {
+      let image = await readNifti(c.seg, `${c.id} source pancreas/tumor labelmap`, 'gray', 1, true, 2, ctImage);
+      if (!image) return null;
+      const src = image.img, dst = segmentImage.img;
+      const dims = image.hdr.dims, nx = dims[1], ny = dims[2], nxny = nx * ny;
+      let pancreasCount = 0, tumorCount = 0;
+      const pancreasAxisCounts = [new Uint32Array(nx), new Uint32Array(ny), new Uint32Array(dims[3])];
+      for (let i = 0; i < src.length; i++) {
+        if (i > 0 && i % 8_000_000 === 0) await yieldToBrowser();
+        const value = Math.round(src[i]);
+        if (value === 1) {
+          dst[i] = 1; pancreasCount++;
+          const x = i % nx, y = Math.floor(i / nx) % ny, z = Math.floor(i / nxny);
+          pancreasAxisCounts[0][x]++;
+          pancreasAxisCounts[1][y]++;
+          pancreasAxisCounts[2][z]++;
+        } else if (value === 2 && c.hasTumorLabels) { dst[i] = 2; tumorCount++; }
+      }
+      let roi = null;
+      if (pancreasCount) {
+        const pixDims = image.hdr?.pixDims || image.hdr?.pixdim || image.pixDims || [1, 1, 1, 1];
+        const spacingValues = Array.from(pixDims);
+        const spacing = (spacingValues.length >= 4 ? spacingValues.slice(1, 4) : spacingValues.slice(0, 3)).map(v => Math.abs(v) || 1);
+        const percentile = (counts, fraction) => {
+          const target = Math.max(0, Math.ceil(pancreasCount * fraction));
+          let accumulated = 0;
+          for (let i = 0; i < counts.length; i++) {
+            accumulated += counts[i];
+            if (accumulated >= target) return i;
+          }
+          return counts.length - 1;
+        };
+        const lowerPercentiles = pancreasAxisCounts.map(counts => percentile(counts, 0.05));
+        const upperPercentiles = pancreasAxisCounts.map(counts => percentile(counts, 0.95));
+        const centerVox = lowerPercentiles.map((value, axis) => (value + upperPercentiles[axis]) / 2);
+        // Keep the central 5th–95th percentile of pancreas voxels per axis,
+        // then add 30 mm on both sides using that axis's own voxel spacing.
+        const low = lowerPercentiles.map((value, axis) => Math.max(0, Math.floor(value - 30 / spacing[axis])));
+        const high = upperPercentiles.map((value, axis) => Math.min(dims[axis + 1] - 1, Math.ceil(value + 30 / spacing[axis])));
+        roi = {
+          centerMM: voxelToRAS(image, centerVox),
+          lowVox: low,
+          highVox: high
+        };
+      }
+      image.img = null;
+      image.imgRaw = null;
+      image = null;
+      return { pancreasCount, tumorCount, roi };
+    }
+    function clipRenderVolumeToPancreasROI() {
+      if (!renderCTImage || !pancreasROI) return;
+      const dims = renderCTImage.hdr.dims;
+      const [nx, ny, nz] = [dims[1], dims[2], dims[3]];
+      const [x0, y0, z0] = pancreasROI.lowVox;
+      const [x1, y1, z1] = pancreasROI.highVox;
+      const data = renderCTImage.img;
+      const slope = Number(renderCTImage.hdr.scl_slope);
+      const intercept = Number(renderCTImage.hdr.scl_inter) || 0;
+      const scale = Number.isFinite(slope) && slope !== 0 ? slope : 1;
+      // Keep the crop mask below the transfer curve's transparent 170 HU onset.
+      const transparentValue = Math.floor((99 - intercept) / scale);
+      const slab = nx * ny;
+      for (let z = 0; z < nz; z++) {
+        for (let y = 0; y < ny; y++) {
+          const row = z * slab + y * nx;
+          if (z < z0 || z > z1 || y < y0 || y > y1) {
+            data.fill(transparentValue, row, row + nx);
+          } else {
+            if (x0 > 0) data.fill(transparentValue, row, row + x0);
+            if (x1 < nx - 1) data.fill(transparentValue, row + x1 + 1, row + nx);
+          }
+        }
+      }
+    }
+    async function addSegmentOutlines() {
+      const dims = ctImage.hdr.dims, nx = dims[1], ny = dims[2], nz = dims[3], nxny = nx * ny;
+      const data = segmentImage.img;
+      for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
+        if (x === 0 && y === 0 && z > 0 && z % 8 === 0) await yieldToBrowser();
+        const i = x + y * nx + z * nxny, label = data[i];
+        if (label < 1 || label > 6) continue;
+        const edge = x === 0 || x === nx-1 || y === 0 || y === ny-1 || z === 0 || z === nz-1 ||
+          data[i-1] === 0 || data[i+1] === 0 || data[i-nx] === 0 || data[i+nx] === 0 || data[i-nxny] === 0 || data[i+nxny] === 0;
+        if (edge) {
+          if (x > 0 && data[i-1] === 0) data[i-1] = label + 6;
+          if (x < nx-1 && data[i+1] === 0) data[i+1] = label + 6;
+          if (y > 0 && data[i-nx] === 0) data[i-nx] = label + 6;
+          if (y < ny-1 && data[i+nx] === 0) data[i+nx] = label + 6;
+          if (z > 0 && data[i-nxny] === 0) data[i-nxny] = label + 6;
+          if (z < nz-1 && data[i+nxny] === 0) data[i+nxny] = label + 6;
+        }
+      }
+    }
+    function splitSegmentLayers(caseId) {
+      fillImage = NVImage.zerosLike(ctImage, 'uint8');
+      fillImage.name = `${caseId} segmentation fill`;
+      fillImage.opacity = SEGMENT_FILL_OPACITY;
+      fillImage.ignoreZeroVoxels = true;
+      fillImage.cal_min = 0;
+      fillImage.cal_max = 6;
+      renderFillImage = NVImage.zerosLike(ctImage, 'uint8');
+      renderFillImage.name = `${caseId} 3D segmentation fill`;
+      renderFillImage.opacity = 0.10;
+      renderFillImage.ignoreZeroVoxels = true;
+      renderFillImage.cal_min = 0;
+      renderFillImage.cal_max = 6;
+      tumorFillImage = NVImage.zerosLike(ctImage, 'uint8');
+      tumorFillImage.name = `${caseId} tumor estimation fill`;
+      tumorFillImage.opacity = TUMOR_CT_OPACITY;
+      tumorFillImage.ignoreZeroVoxels = true;
+      tumorFillImage.cal_min = 0;
+      tumorFillImage.cal_max = 6;
+      const fillData = fillImage.img;
+      const tumorFillData = tumorFillImage.img;
+      const renderFillData = renderFillImage.img;
+      const outlineData = segmentImage.img;
+      for (let i = 0; i < outlineData.length; i++) {
+        const label = outlineData[i];
+        if (label >= 1 && label <= 6) {
+          if (TUMOR_LABELS.has(label)) tumorFillData[i] = label;
+          else fillData[i] = label;
+          renderFillData[i] = label;
+          outlineData[i] = 0;
+        }
+      }
+      renderMarkerImage = NVImage.zerosLike(ctImage, 'uint8');
+      renderMarkerImage.name = `${caseId} 3D markers`;
+      renderMarkerImage.opacity = 1;
+      renderMarkerImage.ignoreZeroVoxels = true;
+      renderMarkerImage.cal_min = 0;
+      renderMarkerImage.cal_max = 13;
+    }
+    function parseFcsv(text) {
+      const lines = text.split(/\r?\n/);
+      const isLps = lines.some(line => /^#\s*CoordinateSystem\s*=\s*LPS/i.test(line));
+      const result = [];
+      for (const line of lines) {
+        if (!line || line.startsWith('#')) continue;
+        const fields = [];
+        let field = '', quoted = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"' && quoted && line[i + 1] === '"') { field += '"'; i++; }
+          else if (char === '"') quoted = !quoted;
+          else if (char === ',' && !quoted) { fields.push(field); field = ''; }
+          else field += char;
+        }
+        fields.push(field);
+        if (fields.length < 4) continue;
+        const xyz = fields.slice(1,4).map(Number);
+        if (!xyz.every(Number.isFinite)) continue;
+        if (isLps) { xyz[0] = -xyz[0]; xyz[1] = -xyz[1]; }
+        result.push({ name: fields[11] || fields[0] || 'Marker', mm: xyz, source: 'user' });
+      }
+      return result;
+    }
+    function findSelectedFile(relativePath) {
+      if (!selectedLocalFiles) return null;
+      const normalizedPath = relativePath.replaceAll('\\', '/');
+      const exact = selectedLocalFiles.get(normalizedPath);
+      if (exact) return exact;
+      const suffix = `/${normalizedPath}`;
+      for (const file of selectedLocalFiles.values()) {
+        const localPath = (file.webkitRelativePath || '').replaceAll('\\', '/');
+        if (localPath === normalizedPath || localPath.endsWith(suffix)) return file;
+      }
+      return selectedLocalFiles.get(normalizedPath.split('/').at(-1)) || null;
+    }
+    async function readArteryMarkups(c) {
+      let text = '';
+      if (selectedLocalFiles) {
+        const file = findSelectedFile(c.fcsv);
+        if (!file) return [];
+        text = await file.text();
+      } else {
+        try {
+          const response = await fetch(new URL(c.fcsv.split('/').map(encodeURIComponent).join('/'), document.baseURI), { cache: 'no-store' });
+          if (!response.ok) return [];
+          text = await response.text();
+        } catch (_) { return []; }
+      }
+      return parseFcsv(text).map(marker => ({ ...marker, source: 'artery' }));
+    }
+    function isArteryMarker(marker) {
+      return marker?.source === 'artery';
+    }
+    function userMarkers() {
+      return markerRows.filter(marker => !isArteryMarker(marker));
+    }
+    function matchesArteryMarker(marker, arteryMarkers) {
+      return arteryMarkers.some(artery => {
+        if (marker.name && marker.name === artery.name) return true;
+        return marker.mm.every((value, axis) => Math.abs(Number(value) - Number(artery.mm[axis])) < 0.05);
+      });
+    }
+    async function readSavedMarkers(c) {
+      const filename = c.markers.split('/').at(-1);
+      if (selectedLocalFiles) {
+        const file = findSelectedFile(c.markers);
+        return file ? parseFcsv(await file.text()) : null;
+      }
+      try {
+        const response = await fetch(new URL(c.markers.split('/').map(encodeURIComponent).join('/'), document.baseURI), { cache: 'no-store' });
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return parseFcsv(await response.text());
+      } catch (error) {
+        if (error instanceof TypeError) return null;
+        throw error;
+      }
+    }
+    function showScanSpacing(image) {
+      const raw = Array.from(image?.hdr?.pixDims || image?.hdr?.pixdim || image?.pixDims || []);
+      const spacing = (raw.length >= 4 ? raw.slice(1, 4) : raw.slice(0, 3)).map(Number);
+      if (spacing.length === 3 && spacing.every(value => Number.isFinite(value) && value > 0)) {
+        const formatted = spacing.map(value => value.toFixed(3).replace(/\.?0+$/, ''));
+        document.querySelector('#coordinates').textContent = `Pixel/slice spacing (X × Y × Z): ${formatted.join(' × ')} mm`;
+      } else {
+        document.querySelector('#coordinates').textContent = 'Spacing unavailable';
+      }
+    }
+    Object.values(views).forEach(viewer => {
+      viewer.onLocationChange = location => {
+        if (!location?.mm || syncingCrosshair || !ctImage) return;
+        if (location.vox && location.vox.length >= 3) currentCrosshairVox = Array.from(location.vox).slice(0, 3).map(Number);
+        syncingCrosshair = true;
+        const fraction = mmToSceneFraction(location.mm);
+        Object.values(views).forEach(other => { other.scene.crosshairPos = [...fraction]; });
+        drawAllViews();
+        syncingCrosshair = false;
+      };
+    });
+
+    function editMarker(index) {
+      const marker = markerRows[index];
+      const li = markerList.children[index];
+      if (!marker || !li || isArteryMarker(marker)) return;
+      li.replaceChildren();
+      const form = document.createElement('div');
+      form.className = 'marker-edit';
+      const fields = [
+        { value: marker.name, label: 'Marker name', type: 'text' },
+        ...marker.mm.map((value, axis) => ({ value: Number(value).toFixed(2), label: `RAS ${'XYZ'[axis]} mm`, type: 'number' }))
+      ];
+      const inputs = fields.map(field => {
+        const input = document.createElement('input');
+        input.type = field.type;
+        input.value = field.value;
+        input.setAttribute('aria-label', field.label);
+        if (field.type === 'number') input.step = '0.01';
+        form.append(input);
+        return input;
+      });
+      const save = document.createElement('button');
+      save.type = 'button'; save.textContent = 'Save';
+      save.onclick = () => {
+        const coords = inputs.slice(1).map(input => Number(input.value));
+        if (!inputs[0].value.trim() || !coords.every(Number.isFinite)) {
+          setStatus('Enter a marker name and three valid RAS coordinates.');
+          return;
+        }
+        marker.name = inputs[0].value.trim();
+        marker.mm = coords;
+        marker.vox = typeof nv.frac2vox === 'function' ? Array.from(nv.frac2vox(mmToSceneFraction(coords))).slice(0, 3).map(Number) : null;
+        updateMarkerList();
+        redrawMarkerImage();
+      };
+      const cancel = document.createElement('button');
+      cancel.type = 'button'; cancel.textContent = 'Cancel';
+      cancel.onclick = updateMarkerList;
+      form.append(save, cancel);
+      li.append(form);
+      inputs[0].focus();
+    }
+
+    function updateMarkerList() {
+      clearMarkerList();
+      markerRows.forEach((marker, index) => {
+        const fixed = isArteryMarker(marker);
+        const li = document.createElement('li');
+        if (fixed) li.className = 'marker-fixed';
+        const title = document.createElement('span');
+        title.className = 'marker-entry';
+        title.tabIndex = 0;
+        title.title = fixed ? 'Artery label. Click to center all views' : 'Click to center all views';
+        const strong = document.createElement('strong');
+        strong.textContent = marker.name;
+        const coords = document.createElement('small');
+        coords.textContent = `${mmText(marker.mm)} mm (RAS)`;
+        title.append(strong, coords);
+        title.onclick = () => setCrosshairMM(marker.mm);
+        title.onkeydown = event => {
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setCrosshairMM(marker.mm); }
+        };
+        li.append(title);
+        if (!fixed) {
+          const edit = document.createElement('button');
+          edit.textContent = '✎';
+          edit.title = 'Edit marker';
+          edit.setAttribute('aria-label', `Edit ${marker.name}`);
+          edit.onclick = () => editMarker(index);
+          const remove = document.createElement('button');
+          remove.textContent = '×';
+          remove.title = 'Remove marker';
+          remove.onclick = () => { markerRows.splice(index, 1); updateMarkerList(); redrawMarkerImage(); };
+          li.append(edit, remove);
+        }
+        markerList.append(li);
+      });
+      const enabled = Boolean(loadedCase);
+      document.querySelector('#addMarker').disabled = !enabled;
+      document.querySelector('#clearMarkers').disabled = !enabled || userMarkers().length === 0;
+      document.querySelector('#saveMarkers').disabled = !enabled;
+      document.querySelector('#resetViews').disabled = !enabled;
+      document.querySelector('#measureButton').disabled = !enabled;
+      updateRenderMarkerLabels();
+    }
+
+    function setMeasurementMode(enabled) {
+      measurementMode = Boolean(enabled);
+      const button = document.querySelector('#measureButton');
+      button.setAttribute('aria-pressed', String(measurementMode));
+      button.title = measurementMode ? 'Drag on a CT slice to measure in mm; click to exit' : 'Measure distance (mm)';
+      for (const name of ['axial', 'coronal', 'sagittal']) {
+        views[name].setMouseEventConfig({
+          leftButton: { primary: measurementMode ? DRAG_MODE.measurement : DRAG_MODE.crosshair },
+          centerButton: DRAG_MODE.pan
+        });
+      }
+      if (loadedCase) setStatus(measurementMode
+        ? 'Measurement mode: click and drag on a slice to measure distance in mm.'
+        : `Loaded ${loadedCase.id}.`);
+    }
+    let measurementMode = false;
+    document.querySelector('#measureButton').onclick = () => {
+      if (loadedCase) setMeasurementMode(!measurementMode);
+    };
+
+    // A hollow sphere with a 5 mm outer diameter keeps markers visible without obscuring anatomy.
+    function redrawMarkerImage() {
+      if (!loadedCase || !segmentImage || !ctImage) return;
+      const data = segmentImage.img;
+      for (const [index, original] of markerVoxelValues) data[index] = original;
+      markerVoxelValues.clear();
+      if (renderMarkerImage) renderMarkerImage.img.fill(0);
+      const nx = ctImage.hdr.dims[1], ny = ctImage.hdr.dims[2], nz = ctImage.hdr.dims[3];
+      const nxny = nx * ny;
+      for (const marker of markerRows) {
+        // Use NiiVue's own crosshair voxel mapping for click-created markers. This
+        // is the same voxel convention used by its slice renderer and location API.
+        const rawVox = marker.vox || (typeof nv.frac2vox === 'function'
+          ? Array.from(nv.frac2vox(mmToSceneFraction(marker.mm)))
+          : Array.from(ctImage.mm2vox(marker.mm, false)));
+        const vox = rawVox.slice(0, 3).map(v => Math.round(Number(v)));
+        // The labelmap's stored voxel axes run opposite to the displayed slice's
+        // horizontal and vertical screen axes. Convert the clicked voxel into that
+        // storage orientation when writing marker voxels.
+        const cx = nx - 1 - vox[0], cy = ny - 1 - vox[1], cz = vox[2];
+        const spacing = Array.from(ctImage.hdr?.pixDims || ctImage.hdr?.pixdim || ctImage.pixDims || [1,1,1,1]);
+        const pix = spacing.length >= 4 ? spacing.slice(1,4) : spacing.slice(0,3);
+        const [sx,sy,sz] = pix.map(v => Math.abs(v) || 1);
+        const radiusMM = 2.5;
+        const rx = Math.ceil(radiusMM / sx), ry = Math.ceil(radiusMM / sy), rz = Math.ceil(radiusMM / sz);
+        const shellThickness = Math.max(0.65, Math.min(1.2, 0.8 * Math.min(sx, sy, sz)));
+        const innerRadius = Math.max(0, radiusMM - shellThickness);
+        for (let z = Math.max(0, cz - rz); z <= Math.min(nz - 1, cz + rz); z++) {
+          for (let y = Math.max(0, cy - ry); y <= Math.min(ny - 1, cy + ry); y++) {
+            for (let x = Math.max(0, cx - rx); x <= Math.min(nx - 1, cx + rx); x++) {
+              const distanceSquared = ((x-cx)*sx)**2 + ((y-cy)*sy)**2 + ((z-cz)*sz)**2;
+              if (distanceSquared <= radiusMM**2 && distanceSquared >= innerRadius**2) {
+                const index = x + y * nx + z * nxny;
+                if (!markerVoxelValues.has(index)) markerVoxelValues.set(index, data[index]);
+                data[index] = 13;
+                if (renderMarkerImage) renderMarkerImage.img[index] = 13;
+              }
+            }
+          }
+        }
+      }
+      Object.values(views).forEach(viewer => viewer.updateGLVolume());
+      drawAllViews();
+    }
+
+    document.querySelector('#addMarker').onclick = () => {
+      if (!loadedCase) return;
+      const location = crosshairMM();
+      if (!location || location.length < 3) { setStatus('Click a slice to choose a marker location.'); return; }
+      const mm = Array.from(location).slice(0, 3).map(Number);
+      markerRows.push({ name: `Marker ${userMarkers().length + 1}`, mm, vox: currentCrosshairVox?.slice() || null, source: 'user' });
+      updateMarkerList();
+      redrawMarkerImage();
+    };
+    document.querySelector('#clearMarkers').onclick = () => {
+      markerRows = markerRows.filter(isArteryMarker);
+      updateMarkerList();
+      redrawMarkerImage();
+    };
+    function serializeMarkersFcsv(markers) {
+      const csv = value => `"${String(value).replaceAll('"', '""')}"`;
+      const lines = [
+        '# Markups fiducial file version = 4.11',
+        '# CoordinateSystem = RAS',
+        '# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID'
+      ];
+      markers.forEach((marker, index) => {
+        const id = `Marker_${String(index + 1).padStart(3, '0')}`;
+        const [x, y, z] = marker.mm.map(value => Number(value).toFixed(4));
+        lines.push([id, x, y, z, 0, 0, 0, 1, 1, 1, 0, csv(marker.name || id), '', ''].join(','));
+      });
+      return `${lines.join('\n')}\n`;
+    }
+    async function saveMarkers() {
+      if (!loadedCase) return;
+      const filename = `${loadedCase.id}_markers.fcsv`;
+      const markers = userMarkers();
+      const contents = serializeMarkersFcsv(markers);
+      try {
+        if (typeof window.showDirectoryPicker === 'function') {
+          const root = await window.showDirectoryPicker({ id: 'ct-viewer-data', mode: 'readwrite' });
+          const caseDirectory = await root.getDirectoryHandle(loadedCase.id, { create: true });
+          const fileHandle = await caseDirectory.getFileHandle(filename, { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(contents);
+          await writable.close();
+          setStatus(`Saved ${markers.length} marker${markers.length === 1 ? '' : 's'} to ${loadedCase.id}/${filename}. Artery labels were left unchanged.`);
+          return;
+        }
+        const blob = new Blob([contents], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+        setStatus(`Downloaded ${filename}. Move it into the ${loadedCase.id} folder inside data to load it next time.`);
+      } catch (error) {
+        if (error.name !== 'AbortError') setStatus(`Could not save markers: ${error.message}`);
+      }
+    }
+    document.querySelector('#saveMarkers').onclick = saveMarkers;
+
+    async function disposeCurrentCase() {
+      if (measurementMode) setMeasurementMode(false);
+      // Remove every volume before beginning the next case to drop decoded voxel arrays.
+      Object.values(views).forEach(viewer => {
+        viewer.clearMeasurements?.();
+        const fade = measurementFades.get(viewer);
+        if (fade) {
+          clearTimeout(fade.delay);
+          cancelAnimationFrame(fade.frame);
+          fade.alpha = 1;
+        }
+        while (viewer.volumes.length) viewer.removeVolumeByIndex(viewer.volumes.length - 1);
+        viewer.meshes?.splice(0, viewer.meshes.length);
+        viewer.labels?.splice(0, viewer.labels.length);
+      });
+      segmentImage = null;
+      renderMarkerImage = null;
+      fillImage = null;
+      tumorFillImage = null;
+      renderFillImage = null;
+      markerVoxelValues.clear();
+      ctImage = null;
+      renderCTImage = null;
+      renderView.position = [0, 0, 0];
+      markerRows = [];
+      renderCameraFocusMM = null;
+      updateMarkerList();
+      loadedCase = null;
+      document.querySelector('#coordinates').textContent = '';
+      drawAllViews();
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    async function readNifti(path, name, colormap, opacity, ignoreZeroVoxels = false, calMax = 1, reference = null) {
+      const filename = path.split('/').at(-1);
+      const options = { colormap, opacity, ignoreZeroVoxels, cal_min: ignoreZeroVoxels ? 0 : NaN, cal_max: ignoreZeroVoxels ? calMax : NaN, colorbarVisible: false };
+      let image;
+      if (selectedLocalFiles) {
+        const file = selectedLocalFiles.get(filename);
+        if (!file) throw new Error(`${filename} was not found in the selected folder`);
+        image = await NVImage.loadFromFile({ file, name: filename, ...options });
+      } else {
+        const url = new URL(path.split('/').map(encodeURIComponent).join('/'), document.baseURI).href;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`${name}: HTTP ${res.status}`);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        try { image = await NVImage.loadFromUrl({ url: blobUrl, name: filename, ...options }); }
+        finally { URL.revokeObjectURL(blobUrl); }
+      }
+      if (reference) {
+        const mismatch = geometryMismatch(reference, image);
+        if (mismatch) {
+          loadWarnings.push(`${name} skipped: ${mismatch}.`);
+          return null;
+        }
+      }
+      image.name = name;
+      return image;
+    }
+    async function addNifti(path, name, colormap, opacity, ignoreZeroVoxels = false, calMax = 1, reference = null) {
+      const image = await readNifti(path, name, colormap, opacity, ignoreZeroVoxels, calMax, reference);
+      if (image) Object.values(views).forEach(viewer => viewer.addVolume(image));
+      return image;
+    }
+
+    async function loadCase(id) {
+      if (location.protocol === 'file:' && !selectedLocalFiles) {
+        setStatus('Choose the data folder first. Direct file pages cannot fetch sibling NIfTI files.');
+        return;
+      }
+      const thisGeneration = ++generation;
+      document.querySelector('#loadBtn').disabled = true;
+      select.disabled = true;
+      document.querySelector('main').classList.add('is-loading');
+      setStatus(`Unloading current scan and loading ${id}…`);
+      document.querySelector('#caseTitle').textContent = 'Loading…';
+      try {
+        await disposeCurrentCase();
+        loadWarnings = [];
+        pancreasROI = null;
+        const c = byId(id);
+        if (!c) throw new Error('Unknown scan selection');
+        ctImage = await readNifti(c.ct, `${c.id} arterial CT`, 'gray', 1);
+        showScanSpacing(ctImage);
+        // Slicer CT_ABDOMEN approximation: width 350 HU, level 40 HU.
+        ctImage.cal_min = -135;
+        ctImage.cal_max = 215;
+        // Keep a separate NVImage for the render canvas: the volume-rendering
+        // transfer map is independent of the abdomen window used by the slices.
+        renderCTImage = await readNifti(c.ct, `${c.id} coronary volume render`, 'gray', 1);
+        renderCTImage.cal_min = 0;
+        renderCTImage.cal_max = 500;
+        renderCTImage.colormap = CORONARY_RENDER_MAP;
+        segmentImage = NVImage.zerosLike(ctImage, 'uint8');
+        segmentImage.name = `${c.id} named segments`;
+        segmentImage.setColormapLabel(SEGMENT_LUT);
+        segmentImage.opacity = 1;
+        segmentImage.ignoreZeroVoxels = true;
+        segmentImage.cal_min = 0;
+        segmentImage.cal_max = 13;
+        try {
+          const summary = await mergePancreasTumor(c);
+          if (!summary) loadWarnings.push('Pancreas/tumor labelmap is missing or does not align with this CT.');
+          else {
+            if (!summary.pancreasCount) loadWarnings.push('Pancreas label 1 is empty.');
+            if (c.hasTumorLabels && !summary.tumorCount) loadWarnings.push('Tumor1 is empty; pancreas remains displayed.');
+            if (summary.roi) pancreasROI = summary.roi;
+          }
+        } catch (error) { loadWarnings.push(`Pancreas/tumor labelmap unavailable: ${error.message}`); }
+        const arteryValues = [3,4,5,6];
+        const arteryNames = ['CA', 'CHA', 'SMA', 'Tumor2'];
+        for (let i = 0; i < c.arteries.length; i++) {
+          const shortName = arteryNames[i];
+          setStatus(`Loading ${id}: merging ${shortName} mask…`);
+          try {
+            const artery = await mergeMaskIntoLabelImage(c.arteries[i], `${c.id} ${shortName}`, arteryValues[i], ctImage);
+            if (!artery.count) loadWarnings.push(`${shortName} labelmap is empty or unavailable.`);
+          } catch (error) { loadWarnings.push(`${shortName} overlay unavailable: ${error.message}`); }
+        }
+        setStatus(`Loading ${id}: drawing segmentation outlines…`);
+        await addSegmentOutlines();
+        splitSegmentLayers(c.id);
+        // Make voxels outside the percentile-based pancreas ROI transparent in the
+        // render-only CT copy, preserving the unmodified slice volume.
+        clipRenderVolumeToPancreasROI();
+        if (thisGeneration !== generation) return;
+        const savedMarkers = await readSavedMarkers(c);
+        const arteryMarkers = await readArteryMarkups(c);
+        arteryMarkers.forEach((marker, i) => { marker.name = marker.name || `Artery ${i + 1}`; });
+        const customMarkers = (savedMarkers || []).filter(marker => !matchesArteryMarker(marker, arteryMarkers));
+        markerRows = [...arteryMarkers, ...customMarkers];
+        for (const [name, viewer] of Object.entries(views)) {
+          viewer.addVolume(name === 'render' ? renderCTImage : ctImage);
+          viewer.addVolume(name === 'render' ? renderFillImage : fillImage);
+          if (name !== 'render') viewer.addVolume(tumorFillImage);
+          if (name !== 'render') viewer.addVolume(segmentImage);
+          if (name === 'render') viewer.addVolume(renderMarkerImage);
+          viewer.updateGLVolume();
+        }
+        // Set transparency at the render volume layers, because label-map LUT
+        // alpha alone is not reflected consistently by NiiVue volume rendering.
+        renderView.setOpacity(1, 0.10);
+        applyOverlayVisibility();
+        loadedCase = c;
+        // Keep NiiVue's default center-of-volume camera framing on load.
+        // The explicit focus override is only used after clicking Center view.
+        renderCameraFocusMM = null;
+        // Start the three linked slice planes at the center of the CT. The 3D render
+        // keeps its independent pancreas pivot/crop when a pancreas ROI exists.
+        setCrosshairVolumeCenter();
+        updateMarkerList();
+        if (markerRows.length) redrawMarkerImage();
+        drawAllViews();
+        document.querySelector('main').classList.remove('is-loading');
+        document.querySelector('#caseTitle').textContent = c.id;
+        const markerStatus = customMarkers.length
+          ? `Loaded ${arteryMarkers.length} fixed artery label${arteryMarkers.length === 1 ? '' : 's'} and ${customMarkers.length} saved marker${customMarkers.length === 1 ? '' : 's'}.`
+          : `Loaded ${arteryMarkers.length} fixed artery label${arteryMarkers.length === 1 ? '' : 's'}.`;
+        setStatus(`Loaded ${c.id}. ${markerStatus} ${loadWarnings.join(' ')}`);
+        updateMarkerList();
+      } catch (error) {
+        console.error(error);
+        await disposeCurrentCase();
+        document.querySelector('#caseTitle').textContent = 'No scan loaded';
+        setStatus(`Could not load ${id}: ${error.message}`);
+      } finally {
+        document.querySelector('main').classList.remove('is-loading');
+        document.querySelector('#loadBtn').disabled = false;
+        select.disabled = false;
+      }
+    }
+
+    document.querySelector('#loadBtn').onclick = () => { if (select.value) loadCase(select.value); };
+    select.onchange = () => {
+      if (!select.value) return;
+      if (location.protocol === 'file:' && !selectedLocalFiles) setStatus('Choose the data folder to load the selected scan.');
+      else loadCase(select.value);
+    };
+    document.querySelector('#chooseFolder').onclick = () => document.querySelector('#folderInput').click();
+    document.querySelector('#folderInput').onchange = event => {
+      const files = Array.from(event.target.files || []);
+      const relevantFiles = files.filter(file => /\.(nii\.gz|fcsv)$/i.test(file.name));
+      selectedLocalFiles = new Map();
+      relevantFiles.forEach(file => {
+        selectedLocalFiles.set(file.name, file);
+        if (file.webkitRelativePath) selectedLocalFiles.set(file.webkitRelativePath.replaceAll('\\', '/'), file);
+      });
+      const cases = casesFromPickedFiles(relevantFiles);
+      setCaseList(cases);
+      if (!relevantFiles.length) {
+        setStatus('No .nii.gz files found. Choose the data folder that contains the case folders.');
+        selectedLocalFiles = null;
+        return;
+      }
+      if (!cases.length) {
+        setStatus('No CT scans found. Choose the data folder that contains the case folders.');
+        return;
+      }
+      const noun = cases.length === 1 ? 'scan' : 'scans';
+      setStatus(`Found ${cases.length} ${noun}. Loading ${select.value}…`);
+      loadCase(select.value);
+    };
+    if (location.protocol === 'file:') setStatus('Choose the data folder to load local scans.');
+    else {
+      try {
+        setStatus('Scanning data folder…');
+        const cases = await scanServedData();
+        setCaseList(cases);
+        if (!cases.length) setStatus('No CT scans found in the data folder.');
+        else {
+          setStatus(`Found ${cases.length} scan${cases.length === 1 ? '' : 's'}. Loading ${select.value}…`);
+          await loadCase(select.value);
+        }
+      } catch (error) {
+        setStatus(`Could not scan the data folder: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>

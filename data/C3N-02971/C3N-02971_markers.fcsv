@@ -1,0 +1,4 @@
+# Markups fiducial file version = 4.11
+# CoordinateSystem = RAS
+# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID
+Marker_001,-81.1900,140.5700,171.5000,0,0,0,1,1,1,0,"Isolated contrast",,

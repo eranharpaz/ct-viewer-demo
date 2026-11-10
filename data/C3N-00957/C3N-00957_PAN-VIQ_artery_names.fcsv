@@ -1,0 +1,6 @@
+# Markups fiducial file version = 4.11
+# CoordinateSystem = RAS
+# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID
+C3N-00957_CA,-5.5143,166.1136,-337.7350,0,0,0,1,1,1,0,CA,PAN-VIQ predicted artery centroid,
+C3N-00957_CHA,23.6909,184.3035,-344.9654,0,0,0,1,1,1,0,CHA,PAN-VIQ predicted artery centroid,
+C3N-00957_SMA,4.6488,175.1063,-385.9576,0,0,0,1,1,1,0,SMA,PAN-VIQ predicted artery centroid,

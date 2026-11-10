@@ -1,0 +1,4 @@
+# Markups fiducial file version = 4.11
+# CoordinateSystem = RAS
+# columns = id,x,y,z,ow,ox,oy,oz,vis,sel,lock,label,desc,associatedNodeID
+Marker_001,-102.0500,146.6600,-366.7600,0,0,0,1,1,1,0,"Potential contrast traces",,
