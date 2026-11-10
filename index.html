@@ -22,7 +22,7 @@
     button.primary { width: 100%; margin-top: 10px; background: #245b7a; border-color: #327da6; }
     .hint, #status { color: #96a6b8; font-size: 12px; }
     #status { min-height: 34px; margin-top: 11px; }
-    #markers { list-style: none; padding: 0; margin: 0; }
+    #markers { list-style: none; padding: 0; margin: 0 0 10px; }
     #markers li { padding: 7px 6px; border-bottom: 1px solid #2b3542; display: flex; gap: 8px; align-items: center; }
     #markers li span.marker-entry { flex: 1; min-width: 0; cursor: pointer; border-radius: 5px; padding: 5px 6px; }
     #markers li span.marker-entry:hover, #markers li span.marker-entry:focus { background: #26384a; outline: none; }
@@ -76,13 +76,12 @@
       <div id="status">Starting viewer…</div>
 
       <h2>Markers</h2>
+      <ul id="markers"></ul>
       <div class="row">
         <button id="addMarker" disabled>Add at crosshair</button>
         <button id="clearMarkers" disabled>Clear</button>
       </div>
       <button id="saveMarkers" disabled style="width:100%;margin-top:8px">Save markers to Data folder…</button>
-      <p class="hint">Click any slice to move the linked crosshair. Add a marker at its current location. Click a marker to center all views; use the pencil to edit it.</p>
-      <ul id="markers"></ul>
       <h2>Overlay colors</h2>
       <div class="legend">
         <button class="legend-toggle" data-labels="1,7" aria-pressed="true"><i class="swatch" style="background:#ffff00"></i>Pancreas</button>
